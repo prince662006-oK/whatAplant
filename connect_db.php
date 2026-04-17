@@ -1,10 +1,9 @@
 <?php
-// ====================== CONFIGURATION BASE DE DONNÉES ======================
 
-$host     = 'localhost';
-$dbname   = 'minci_db';
+$host     = 'nozomi.proxy.rlwy.net';
+$dbname   = 'railway';
 $username = 'root';
-$password = '';
+$password = 'GEmBBTNXtOErtvGKVFPBlDIjcTbgMnAJ';
 
 try {
     $conn = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
@@ -14,13 +13,11 @@ try {
     die("Erreur de connexion à la base de données : " . $e->getMessage());
 }
 
-// ====================== DÉMARRAGE DE SESSION ======================
 // Protection contre le double session_start()
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// ====================== FONCTIONS UTILES ======================
 
 function clean($data) {
     return htmlspecialchars(stripslashes(trim($data)));
