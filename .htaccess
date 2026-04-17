@@ -3,37 +3,34 @@ Options -Indexes
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # === EXCLUSIONS TRÈS FORTES POUR PWA ===
-    # Ne rien toucher si le fichier ou dossier existe vraiment
+    # === PRIORITÉ MAXIMALE : Servir les vrais fichiers existants ===
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
-    # Exclure explicitement manifest.json et sw.js
+    # === EXCLUSIONS EXPLICITES pour PWA ===
     RewriteCond %{REQUEST_URI} ^/manifest\.json$ [OR]
     RewriteCond %{REQUEST_URI} ^/sw\.js$ [OR]
     RewriteCond %{REQUEST_URI} ^/icons/ [OR]
     RewriteCond %{REQUEST_URI} ^/uploads/
     RewriteRule ^ - [L]
 
-    # Tout le reste → index.php
+    # Tout le reste va vers ton index.php
     RewriteRule ^ index.php [L]
 </IfModule>
 
-# Headers pour le manifest
+# Headers spécifiques
 <Files "manifest.json">
     Header set Content-Type "application/json; charset=utf-8"
     Header set Cache-Control "public, max-age=3600"
 </Files>
 
-# Headers pour le Service Worker
 <Files "sw.js">
     Header set Content-Type "application/javascript"
     Header set Service-Worker-Allowed "/"
     Header set Cache-Control "no-cache, no-store, must-revalidate"
 </Files>
 
-# Icônes
 <FilesMatch "\.(png|ico|jpg|jpeg|svg)$">
     Header set Access-Control-Allow-Origin "*"
     Header set Cache-Control "public, max-age=604800"
