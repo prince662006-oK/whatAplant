@@ -1,0 +1,47 @@
+Options -Indexes
+
+# ====================== ROUTING PRINCIPAL ======================
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # IMPORTANT : Exclure les fichiers statiques et le manifest du routing
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} !^/manifest\.php$
+    RewriteCond %{REQUEST_URI} !^/sw\.js$
+    RewriteCond %{REQUEST_URI} !^/icons/
+    RewriteCond %{REQUEST_URI} !^/uploads/
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# ====================== MIME TYPES & HEADERS PWA ======================
+
+# Manifest
+<FilesMatch "manifest\.php$">
+    Header set Content-Type "application/json; charset=utf-8"
+    Header set Cache-Control "public, max-age=3600"
+</FilesMatch>
+
+# Service Worker
+<FilesMatch "sw\.js$">
+    Header set Content-Type "application/javascript"
+    Header set Service-Worker-Allowed "/"
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+</FilesMatch>
+
+# Icônes et images
+<FilesMatch "\.(png|jpg|jpeg|ico|svg|webp)$">
+    Header set Access-Control-Allow-Origin "*"
+    Header set Cache-Control "public, max-age=604800"
+</FilesMatch>
+
+# Compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
+</IfModule>
+
+# Sécurité
+<FilesMatch "\.(sql|env|log|sh)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
