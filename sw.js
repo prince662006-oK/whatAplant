@@ -1,135 +1,103 @@
 /**
- * sw.js — Service Worker WhatAPlant
- * Gère le cache offline et les notifications push
+ * sw.js — Service Worker WhatAPlant (Version Racine)
  */
 
-const VERSION_CACHE = 'whataplan-v1.2';
+const VERSION_CACHE = 'whataplan-v1.4';   // Incrémente à chaque mise à jour
 
-// Fichiers à mettre en cache pour le mode hors ligne
 const FICHIERS_CACHE = [
-  '/',
+    '/',
     '/index.php',
-    '/connexion.php',
     '/accueil.php',
     '/chat.php',
     '/scan.php',
+    '/connexion.php',
     '/manifest.json',
     '/icons/icon-192.png',
-    '/icons/icon-512.png',
+    '/icons/icon-512.png'
+    // Ajoute ici tes fichiers CSS, JS statiques si nécessaire
 ];
 
-// ── Installation : mise en cache des fichiers essentiels ──
+// ── Installation ──
 self.addEventListener('install', event => {
-    console.log('[SW] Installation WhatAPlant v1.2');
+    console.log(`[SW] Installation ${VERSION_CACHE}`);
     event.waitUntil(
         caches.open(VERSION_CACHE).then(cache => {
             console.log('[SW] Mise en cache des fichiers essentiels');
-            return cache.addAll(FICHIERS_CACHE).catch(err => {
-                console.warn('[SW] Certains fichiers non cachés:', err);
-            });
+            return cache.addAll(FICHIERS_CACHE);
         }).then(() => self.skipWaiting())
     );
 });
 
-// ── Activation : supprimer les anciens caches ──
+// ── Activation ──
 self.addEventListener('activate', event => {
     console.log('[SW] Activation');
     event.waitUntil(
         caches.keys().then(cles => {
             return Promise.all(
-                cles.filter(cle => cle !== VERSION_CACHE)
-                    .map(cle => {
-                        console.log('[SW] Suppression ancien cache:', cle);
-                        return caches.delete(cle);
-                    })
+                cles.filter(cle => cle !== VERSION_CACHE).map(cle => caches.delete(cle))
             );
         }).then(() => self.clients.claim())
     );
 });
 
-// ── Fetch : stratégie Cache puis Réseau ──
+// ── Fetch ──
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
 
-    // Ne pas cacher les requêtes API, images dynamiques et POST
+    // Ignorer les requêtes POST, API dynamiques et uploads
     if (
-        event.request.method === 'POST' ||
+        event.request.method !== 'GET' ||
         url.pathname.includes('api_chat.php') ||
         url.pathname.includes('img_proxy.php') ||
         url.pathname.includes('uploads/')
     ) {
-        // Réseau uniquement pour les requêtes dynamiques
-        event.respondWith(
-            fetch(event.request).catch(() => {
-                return new Response(
-                    JSON.stringify({ error: 'Pas de connexion internet. Vérifiez votre réseau.' }),
-                    { headers: { 'Content-Type': 'application/json' } }
-                );
+        event.respondWith(fetch(event.request).catch(() => 
+            new Response(JSON.stringify({ error: 'Hors ligne' }), { 
+                headers: { 'Content-Type': 'application/json' } 
             })
-        );
+        ));
         return;
     }
 
-    // Stratégie : Cache d'abord, puis réseau (pour les pages)
+    // Stratégie Cache First + mise à jour en arrière-plan
     event.respondWith(
         caches.match(event.request).then(reponseCache => {
-            if (reponseCache) {
-                // Mettre à jour en arrière-plan
-                fetch(event.request).then(reponseReseau => {
-                    if (reponseReseau && reponseReseau.status === 200) {
-                        caches.open(VERSION_CACHE).then(cache => {
-                            cache.put(event.request, reponseReseau.clone());
-                        });
-                    }
-                }).catch(() => {});
-                return reponseCache;
-            }
-
-            // Pas en cache → réseau
-            return fetch(event.request).then(reponseReseau => {
-                if (!reponseReseau || reponseReseau.status !== 200) return reponseReseau;
-                const cloneReponse = reponseReseau.clone();
-                caches.open(VERSION_CACHE).then(cache => {
-                    cache.put(event.request, cloneReponse);
-                });
+            const fetchPromise = fetch(event.request).then(reponseReseau => {
+                if (reponseReseau && reponseReseau.status === 200) {
+                    caches.open(VERSION_CACHE).then(cache => {
+                        cache.put(event.request, reponseReseau.clone());
+                    });
+                }
                 return reponseReseau;
-            }).catch(() => {
-                // Page hors ligne
-                return caches.match('/accueil.php').then(page => {
-                    return page || new Response(
-                        `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
-                        <meta name="viewport" content="width=device-width">
+            }).catch(() => null);
+
+            return reponseCache || fetchPromise.then(res => res || 
+                caches.match('/index.php').then(page => 
+                    page || new Response(
+                        `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
                         <title>WhatAPlant — Hors ligne</title>
                         <style>
-                            body{font-family:sans-serif;background:#0d5c3a;color:white;
-                            display:flex;flex-direction:column;align-items:center;
-                            justify-content:center;height:100vh;gap:16px;padding:24px;text-align:center;}
-                            h1{font-size:28px;} p{opacity:.8;line-height:1.6;}
-                            button{background:#34d399;border:none;color:#0d5c3a;padding:14px 28px;
-                            border-radius:50px;font-size:16px;font-weight:700;cursor:pointer;margin-top:8px;}
+                            body{font-family:sans-serif;background:#0d5c3a;color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;text-align:center;padding:20px;}
+                            h1{margin:10px 0;} button{padding:12px 28px;margin-top:20px;border:none;border-radius:50px;background:#34d399;color:#0d5c3a;font-weight:bold;font-size:16px;}
                         </style></head>
                         <body>
-                            <div style="font-size:64px">🌿</div>
+                            <div style="font-size:80px">🌿</div>
                             <h1>WhatAPlant</h1>
-                            <p>Vous êtes hors ligne.<br>Vérifiez votre connexion internet<br>pour utiliser l'application.</p>
+                            <p>Vous êtes hors ligne.<br>Vérifiez votre connexion internet.</p>
                             <button onclick="window.location.reload()">🔄 Réessayer</button>
                         </body></html>`,
                         { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-                    );
-                });
-            });
+                    )
+                )
+            );
         })
     );
 });
 
-// ── Message du client (mise à jour manuelle) ──
+// Messages pour mise à jour
 self.addEventListener('message', event => {
-    if (event.data === 'SKIP_WAITING') {
-        self.skipWaiting();
-    }
+    if (event.data === 'SKIP_WAITING') self.skipWaiting();
     if (event.data === 'CLEAR_CACHE') {
-        caches.delete(VERSION_CACHE).then(() => {
-            event.ports[0].postMessage('Cache supprimé');
-        });
+        caches.delete(VERSION_CACHE).then(() => event.ports[0].postMessage('Cache supprimé'));
     }
 });
