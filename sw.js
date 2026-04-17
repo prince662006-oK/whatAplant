@@ -3,7 +3,7 @@
  * Version corrigée - Plus d'erreur clone()
  */
 
-const VERSION_CACHE = 'whataplan-v1.9';
+const VERSION_CACHE = 'whataplan-v2.2';
 const FICHIERS_CACHE = [
     '/',
     '/index.php',
