@@ -8,7 +8,7 @@ const FICHIERS_CACHE = [
     '/chat.php',
     '/scan.php',
     '/connexion.php',
-    'https://lienwh.vercel.app/manifest.json',     
+    '/manifest.json',     
     '/icons/icon-192.png',
     '/icons/icon-512.png'
 ];
