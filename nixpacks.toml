@@ -1,0 +1,2 @@
+[variables]
+    PHP_EXTENSIONS = "pdo_mysql"
