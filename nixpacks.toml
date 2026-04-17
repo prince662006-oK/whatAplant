@@ -1,2 +1,15 @@
 [variables]
     PHP_EXTENSIONS = "pdo_mysql"
+
+nixPkgs = ["php82", "php82Extensions.pdo", "php82Extensions.pdo_mysql", 
+           "php82Extensions.gd", "php82Extensions.curl", "php82Extensions.mbstring",
+           "php82Extensions.fileinfo", "php82Extensions.json"]
+
+[phases.build]
+cmds = [
+    "mkdir -p uploads",
+    "chmod 755 uploads"
+]
+
+[start]
+cmd = "php -S 0.0.0.0:$PORT -t . router.php"
