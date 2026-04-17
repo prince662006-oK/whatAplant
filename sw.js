@@ -1,8 +1,9 @@
 /**
  * sw.js — Service Worker WhatAPlant (Version Racine)
+ * Version corrigée - Plus d'erreur clone()
  */
 
-const VERSION_CACHE = 'whataplan-v1.7';   // ← Incrémente à chaque mise à jour importante
+const VERSION_CACHE = 'whataplan-v1.8';   // ← Change en v1.8 ou plus
 
 const FICHIERS_CACHE = [
     '/',
@@ -11,10 +12,9 @@ const FICHIERS_CACHE = [
     '/chat.php',
     '/scan.php',
     '/connexion.php',
-    '/manifest.json.php',           // ← Important si tu utilises manifest.json.php
+    '/manifest.json.php',      // Si tu utilises manifest.json.php
     '/icons/icon-192.png',
     '/icons/icon-512.png'
-    // Ajoute ici tes fichiers CSS et JS statiques si nécessaire
 ];
 
 // ── Installation ──
@@ -23,9 +23,7 @@ self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(VERSION_CACHE).then(cache => {
             console.log('[SW] Mise en cache des fichiers essentiels');
-            return cache.addAll(FICHIERS_CACHE).catch(err => {
-                console.warn('[SW] Certains fichiers n\'ont pas pu être mis en cache:', err);
-            });
+            return cache.addAll(FICHIERS_CACHE);
         }).then(() => self.skipWaiting())
     );
 });
@@ -43,11 +41,11 @@ self.addEventListener('activate', event => {
     );
 });
 
-// ── Fetch ── (Version corrigée - plus de problème de clone)
+// ── Fetch - Version CORRIGÉE (sans erreur clone) ──
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
 
-    // Ignorer les requêtes non-GET, API dynamiques, uploads, etc.
+    // Ne pas intercepter les requêtes dynamiques
     if (
         event.request.method !== 'GET' ||
         url.pathname.includes('api_chat.php') ||
@@ -56,49 +54,47 @@ self.addEventListener('fetch', event => {
     ) {
         event.respondWith(
             fetch(event.request).catch(() => 
-                new Response(
-                    JSON.stringify({ error: 'Hors ligne' }), 
-                    { headers: { 'Content-Type': 'application/json' } }
-                )
+                new Response(JSON.stringify({ error: 'Hors ligne' }), {
+                    headers: { 'Content-Type': 'application/json' }
+                })
             )
         );
         return;
     }
 
-    // Stratégie : Cache First + mise à jour en arrière-plan
     event.respondWith(
         caches.match(event.request).then(cachedResponse => {
 
-            // Si la réponse est déjà en cache → on la retourne immédiatement
+            // 1. Si on a la réponse en cache → on la retourne tout de suite
             if (cachedResponse) {
-                // Mise à jour silencieuse en arrière-plan
+                // Mise à jour en arrière-plan (silencieuse)
                 fetch(event.request).then(networkResponse => {
                     if (networkResponse && networkResponse.status === 200) {
                         caches.open(VERSION_CACHE).then(cache => {
-                            cache.put(event.request, networkResponse.clone());
+                            cache.put(event.request, networkResponse.clone());   // clone ici est safe
                         });
                     }
-                }).catch(() => {}); // Pas d'erreur si hors ligne
+                }).catch(() => {});
 
                 return cachedResponse;
             }
 
-            // Pas en cache → on va chercher sur le réseau
+            // 2. Pas en cache → on va sur le réseau
             return fetch(event.request).then(networkResponse => {
                 if (!networkResponse || networkResponse.status !== 200) {
                     return networkResponse;
                 }
 
-                // On clone AVANT de mettre en cache
-                const responseToCache = networkResponse.clone();
+                // Clone AVANT de mettre en cache (point critique corrigé)
+                const responseClone = networkResponse.clone();
 
                 caches.open(VERSION_CACHE).then(cache => {
-                    cache.put(event.request, responseToCache);
+                    cache.put(event.request, responseClone);
                 });
 
                 return networkResponse;
             }).catch(() => {
-                // Fallback hors ligne
+                // Page hors ligne
                 return caches.match('/index.php').then(page => {
                     return page || new Response(
                         `<!DOCTYPE html>
@@ -108,9 +104,13 @@ self.addEventListener('fetch', event => {
                             <meta name="viewport" content="width=device-width, initial-scale=1">
                             <title>WhatAPlant — Hors ligne</title>
                             <style>
-                                body{font-family:sans-serif;background:#0d5c3a;color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;text-align:center;padding:20px;}
-                                h1{margin:10px 0;}
-                                button{padding:14px 32px;margin-top:20px;border:none;border-radius:50px;background:#34d399;color:#0d5c3a;font-weight:bold;font-size:16px;cursor:pointer;}
+                                body {font-family:sans-serif; background:#0d5c3a; color:white; 
+                                      display:flex; flex-direction:column; align-items:center; 
+                                      justify-content:center; height:100vh; text-align:center; padding:20px;}
+                                h1 {margin:10px 0;}
+                                button {padding:14px 32px; margin-top:20px; border:none; 
+                                        border-radius:50px; background:#34d399; color:#0d5c3a; 
+                                        font-weight:bold; font-size:16px; cursor:pointer;}
                             </style>
                         </head>
                         <body>
@@ -128,14 +128,10 @@ self.addEventListener('fetch', event => {
     );
 });
 
-// ── Messages pour mise à jour ──
+// ── Messages ──
 self.addEventListener('message', event => {
-    if (event.data === 'SKIP_WAITING') {
-        self.skipWaiting();
-    }
+    if (event.data === 'SKIP_WAITING') self.skipWaiting();
     if (event.data === 'CLEAR_CACHE') {
-        caches.delete(VERSION_CACHE).then(() => {
-            event.ports[0].postMessage('Cache supprimé');
-        });
+        caches.delete(VERSION_CACHE).then(() => event.ports[0].postMessage('Cache supprimé'));
     }
 });
