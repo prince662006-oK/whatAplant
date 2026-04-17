@@ -1,24 +1,24 @@
 <?php
-$host     = 'nozomi.proxy.rlwy.net';
-$port     = '14824';
-$dbname   = 'railway';
-$username = 'root';
-$password = 'GEmBBTNXtOErtvGKVFPBlDIjcTbgMnAJ';
+
+// Railway injecte ces variables automatiquement si les deux services sont dans le même projet
+$host     = getenv('MYSQLHOST') ?: 'mysql.railway.internal'; 
+$port     = getenv('MYSQLPORT') ?: '3306';
+$dbname   = getenv('MYSQLDATABASE') ?: 'railway';
+$username = getenv('MYSQLUSER') ?: 'root';
+$password = getenv('MYSQLPASSWORD') ?: 'GEmBBTNXtOErtvGKVFPBlDIjcTbgMnAJ';
 
 try {
-    // On ajoute explicitement l'hôte et le port dans une chaîne propre
-    // Note : On évite de laisser des espaces autour des points-virgules
+    // On construit le DSN proprement
     $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
     
-    $conn = new PDO($dsn, $username, $password, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        // Cette option force l'utilisation de TCP au lieu des sockets Unix
-        PDO::MYSQL_ATTR_DIRECT_QUERY => true 
-    ]);
+    $conn = new PDO($dsn, $username, $password);
+    
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $conn->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 
 } catch(PDOException $e) {
-    die("Erreur de connexion à la base de données : " . $e->getMessage());
+    // Si l'erreur 2002 persiste, on affiche plus de détails
+    die("Erreur de connexion : " . $e->getMessage() . " (Host: $host)");
 }
 // Protection contre le double session_start()
 if (session_status() === PHP_SESSION_NONE) {
