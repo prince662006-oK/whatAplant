@@ -1,22 +1,21 @@
 <?php
-<?php
 $host     = 'nozomi.proxy.rlwy.net';
-$port     = '14824'; // On ajoute le port spécifique ici
+$port     = '14824';
 $dbname   = 'railway';
 $username = 'root';
 $password = 'GEmBBTNXtOErtvGKVFPBlDIjcTbgMnAJ';
 
 try {
-    // Le secret est ici : on ajoute "port=$port" dans la chaîne DSN
-    $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
+    // On ajoute explicitement l'hôte et le port dans une chaîne propre
+    // Note : On évite de laisser des espaces autour des points-virgules
+    $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
     
-    $conn = new PDO($dsn, $username, $password);
-    
-    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $conn->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-    
-    // Test de succès (optionnel, à retirer après)
-    // echo "Connexion réussie !"; 
+    $conn = new PDO($dsn, $username, $password, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        // Cette option force l'utilisation de TCP au lieu des sockets Unix
+        PDO::MYSQL_ATTR_DIRECT_QUERY => true 
+    ]);
 
 } catch(PDOException $e) {
     die("Erreur de connexion à la base de données : " . $e->getMessage());
