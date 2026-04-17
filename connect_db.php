@@ -1,9 +1,9 @@
 <?php
-
-$host     = 'nozomi.proxy.rlwy.net';
-$dbname   = 'railway';
-$username = 'root';
-$password = 'GEmBBTNXtOErtvGKVFPBlDIjcTbgMnAJ';
+$host     = getenv('MYSQLHOST'); 
+$port     = getenv('MYSQLPORT');
+$dbname   = getenv('MYSQLDATABASE');
+$username = getenv('MYSQLUSER');
+$password = getenv('MYSQLPASSWORD');
 
 try {
     $conn = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
