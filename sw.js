@@ -7,14 +7,15 @@ const VERSION_CACHE = 'whataplan-v1.2';
 
 // Fichiers à mettre en cache pour le mode hors ligne
 const FICHIERS_CACHE = [
-    '/projet/index.php',
-    '/projet/connexion.php',
-    '/projet/accueil.php',
-    '/projet/chat.php',
-    '/projet/scan.php',
-    '/projet/manifest.json',
-    '/projet/icons/icon-192.png',
-    '/projet/icons/icon-512.png',
+  '/',
+    '/index.php',
+    '/connexion.php',
+    '/accueil.php',
+    '/chat.php',
+    '/scan.php',
+    '/manifest.json',
+    '/icons/icon-192.png',
+    '/icons/icon-512.png',
 ];
 
 // ── Installation : mise en cache des fichiers essentiels ──
@@ -94,7 +95,7 @@ self.addEventListener('fetch', event => {
                 return reponseReseau;
             }).catch(() => {
                 // Page hors ligne
-                return caches.match('/projet/accueil.php').then(page => {
+                return caches.match('/accueil.php').then(page => {
                     return page || new Response(
                         `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
                         <meta name="viewport" content="width=device-width">
