@@ -1,5 +1,4 @@
 <?php
-// manifest.php - Sert le manifest JSON correctement
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: public, max-age=3600');
 
