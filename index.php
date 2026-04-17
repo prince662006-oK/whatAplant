@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#0d5c3a">
     <title>WhatAPlant</title>
-    <link rel="manifest" href="https://lienwh.vercel.app/manifest.json">   
-    <link rel="apple-touch-icon" href="https://lienwh.vercel.app/icons/icon-192.png">
+    <link rel="manifest" href="/manifest.json">   
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
 
