@@ -1,7 +1,4 @@
-/**
- * sw.js — Service Worker WhatAPlant (Version Racine)
- * Version corrigée - Plus d'erreur clone()
- */
+
 
 const VERSION_CACHE = 'whataplan-v2.3';
 const FICHIERS_CACHE = [
@@ -11,7 +8,7 @@ const FICHIERS_CACHE = [
     '/chat.php',
     '/scan.php',
     '/connexion.php',
-    '/manifest.json',      // Si tu utilises manifest.json.php
+    'https://lienwh.vercel.app/manifest.json',     
     '/icons/icon-192.png',
     '/icons/icon-512.png'
 ];
