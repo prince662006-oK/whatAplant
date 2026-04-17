@@ -1,0 +1,43 @@
+body{
+    font-family: Georgia, 'Times New Roman', Times, serif;
+    font-size: 17px;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.formulaire_connexion{
+     height: 500px;
+     width: 40%;
+     box-shadow: 10px 10px 10px 10px rgb(209, 232, 209);
+     display: flex;
+     justify-content: center;
+     align-items: center;
+     border-radius: 30px;
+}
+
+form input {
+    width: 350px;
+    height: 45px;
+    border-radius: 10px;
+    border: rgb(209, 232, 209);
+    background-color: rgb(209, 232, 209);
+}
+form button{
+    width: 100%;
+    height: 45px;
+    border-radius:10px ;
+    background-color:rgb(209, 232, 209) ;
+    color: white;
+    border: white;
+}
+.formulaire_connexion:hover{
+    transform: scale(1.1);
+}
+
+form input:active{
+    background-color: rgb(209, 232, 209);
+}

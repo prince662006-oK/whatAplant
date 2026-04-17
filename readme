@@ -1,0 +1,230 @@
+# 🌿 WhatAPlant — Guide d'installation complet
+
+> Copiez ce fichier tel quel dans votre éditeur. Chaque section est autonome.
+
+---
+
+## 📁 Structure des fichiers du projet
+
+```
+whataplan/
+├── chat.php            ← Interface utilisateur complète
+├── api_chat.php        ← Backend IA (Grok xAI + BDD)
+├── connect_db.php      ← Connexion MySQL + fonctions
+├── fastapi_plant.py    ← Serveur OpenCV (optionnel)
+├── inscription.php     ← Page d'inscription
+├── connexion.php       ← Page de connexion
+├── accueil.php         ← Page d'accueil
+└── logout.php          ← Déconnexion
+```
+
+---
+
+## ⚙️ ÉTAPE 1 — Base de données MySQL
+
+Exécutez ce SQL dans phpMyAdmin ou votre terminal MySQL :
+
+```sql
+-- 1. Créer la base de données
+CREATE DATABASE IF NOT EXISTS whataplan
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+USE whataplan;
+
+-- 2. Table des utilisateurs
+CREATE TABLE IF NOT EXISTS utilisateurs (
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    nom          VARCHAR(100)  NOT NULL,
+    email        VARCHAR(150)  NOT NULL UNIQUE,
+    mot_de_passe VARCHAR(255)  NOT NULL,
+    cree_le      DATETIME      DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+> ℹ️ Les tables `discussions_utilisateur_X` et `messages_utilisateur_X`
+> sont créées **automatiquement** lors de l'inscription de chaque utilisateur.
+
+---
+
+## ⚙️ ÉTAPE 2 — Configuration de connect_db.php
+
+Ouvrez `connect_db.php` et modifiez ces 4 lignes :
+
+```php
+define('DB_HOST', 'localhost');      // Votre hôte MySQL
+define('DB_NAME', 'whataplan');      // Nom de la base créée à l'étape 1
+define('DB_USER', 'root');           // Votre utilisateur MySQL
+define('DB_PASS', '');               // Votre mot de passe MySQL
+```
+
+---
+
+## ⚙️ ÉTAPE 3 — Clé API Grok (xAI)
+
+### 3.1 Obtenir votre clé
+
+1. Allez sur **https://console.x.ai**
+2. Créez un compte ou connectez-vous
+3. Menu gauche → **API Keys** → **Create API Key**
+4. Copiez la clé (commence par `xai-...`)
+
+### 3.2 Configurer api_chat.php
+
+Ouvrez `api_chat.php` et modifiez cette ligne :
+
+```php
+define('GROK_API_KEY', 'xai-VOTRE_CLE_ICI');
+```
+
+### 3.3 Modèles utilisés
+
+| Constante       | Valeur par défaut      | Usage                        |
+|-----------------|------------------------|------------------------------|
+| `GROK_MODEL`    | `grok-2-vision-1212`   | Chat + analyse d'images      |
+| `GROK_IMG_MODEL`| `grok-2-image`         | Génération d'illustrations   |
+| `GROK_BASE_URL` | `https://api.x.ai/v1`  | Base URL — ne pas modifier   |
+
+---
+
+## ⚙️ ÉTAPE 4 — Serveur FastAPI + OpenCV (optionnel)
+
+> L'application fonctionne **sans FastAPI**. Cette étape améliore seulement
+> la pré-analyse des images envoyées.
+
+### 4.1 Installer Python et les dépendances
+
+```bash
+pip install fastapi uvicorn opencv-python-headless pillow numpy python-multipart
+```
+
+### 4.2 Lancer le serveur
+
+```bash
+# Mode développement (avec rechargement automatique)
+uvicorn fastapi_plant:app --host 0.0.0.0 --port 8000 --reload
+
+# Mode production
+pip install gunicorn
+gunicorn fastapi_plant:app -w 2 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+```
+
+### 4.3 Vérifier que le serveur tourne
+
+```bash
+curl http://localhost:8000/health
+# Réponse attendue : {"status":"ok","service":"WhatAPlant Vision API"}
+```
+
+---
+
+## ⚙️ ÉTAPE 5 — Configuration PHP (php.ini)
+
+Pour l'envoi d'images, vérifiez ou modifiez ces valeurs dans `php.ini` :
+
+```ini
+upload_max_filesize = 10M
+post_max_size       = 12M
+max_execution_time  = 120
+```
+
+Redémarrez Apache/Nginx après modification.
+
+---
+
+## 🚀 ÉTAPE 6 — Démarrage
+
+1. Placez tous les fichiers PHP dans votre dossier web (ex: `htdocs/whataplan/`)
+2. Lancez FastAPI si vous le souhaitez (optionnel)
+3. Ouvrez `http://localhost/whataplan/inscription.php` dans votre navigateur
+4. Créez un compte — vos tables personnelles sont générées automatiquement
+5. Connectez-vous → vous arrivez sur `chat.php`
+
+---
+
+## 🏗️ Architecture technique
+
+```
+[Navigateur]
+     │
+     │  POST /api_chat.php (FormData: message + image optionnelle)
+     ▼
+[api_chat.php]
+     │
+     ├─── Si image envoyée ──► [FastAPI :8000/analyze] ──► OpenCV pré-analyse
+     │                              (optionnel, non bloquant)
+     │
+     ├─── Charge l'historique ──► [MySQL] (20 derniers messages)
+     │
+     ├─── Appel Grok Vision ──► POST https://api.x.ai/v1/chat/completions
+     │         model: grok-2-vision-1212
+     │         content: [image_url (base64), text]
+     │
+     ├─── Parse la réponse (badges, recette)
+     │
+     ├─── Génère une illustration ──► POST https://api.x.ai/v1/images/generations
+     │         model: grok-2-image
+     │
+     ├─── Sauvegarde en BDD ──► discussions_utilisateur_X + messages_utilisateur_X
+     │
+     └─── Retourne JSON ──► chat.php affiche le résultat
+```
+
+---
+
+## 🎤 Fonctionnalités
+
+| Fonctionnalité        | Technologie                                    | Fichier       |
+|-----------------------|------------------------------------------------|---------------|
+| Chat IA multi-tours   | Grok `grok-2-vision-1212` (xAI API)           | api_chat.php  |
+| Analyse d'image       | Grok Vision + OpenCV FastAPI                  | api_chat.php  |
+| Génération d'image    | Grok `grok-2-image` (xAI API)                 | api_chat.php  |
+| Vocal entrée          | Web Speech API (`SpeechRecognition`) fr-FR    | chat.php      |
+| Vocal sortie          | Web Speech Synthesis (`speechSynthesis`)      | chat.php      |
+| Badges classification | Parsing réponse IA (COMESTIBLE/MÉDICINAL)     | api_chat.php  |
+| Recettes              | JSON parsé depuis réponse IA                  | api_chat.php  |
+| Historique            | MySQL par utilisateur, navigation par clic    | chat.php      |
+| Scanner caméra        | `<input capture="environment">`               | chat.php      |
+
+---
+
+## 🔑 Variables de session attendues
+
+```php
+$_SESSION['user_id']   // INT   — ID de l'utilisateur connecté
+$_SESSION['nom']       // STRING — Prénom affiché dans le chat
+```
+
+Ces variables sont définies dans votre `connexion.php` lors de la connexion.
+
+---
+
+## ❗ Dépannage fréquent
+
+| Problème                          | Solution                                                     |
+|-----------------------------------|--------------------------------------------------------------|
+| `Erreur Grok API`                 | Vérifiez `GROK_API_KEY` dans `api_chat.php`                 |
+| Images non envoyées               | Vérifiez `upload_max_filesize` dans `php.ini`               |
+| FastAPI non disponible            | Normal — l'app continue sans pré-analyse OpenCV             |
+| `Table doesn't exist`             | L'utilisateur ne s'est pas inscrit via `inscription.php`    |
+| Historique vide au rechargement   | Vérifiez la connexion MySQL dans `connect_db.php`           |
+| Voix non disponible               | Utilisez Chrome ou Edge (meilleur support Speech API)       |
+
+---
+
+## 🔒 Sécurité en production
+
+```apache
+# .htaccess — Protéger api_chat.php des accès directs non-AJAX
+<Files "api_chat.php">
+    Header always set X-Content-Type-Options "nosniff"
+</Files>
+```
+
+- Ne jamais exposer `GROK_API_KEY` dans le JavaScript côté client
+- Activer HTTPS sur votre serveur
+- Limiter les tentatives de connexion (fail2ban ou similaire)
+
+---
+
+*WhatAPlant — Propulsé par Grok (xAI) + OpenCV + PHP*
