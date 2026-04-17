@@ -1,18 +1,26 @@
 <?php
-$host     = getenv('MYSQLHOST'); 
-$port     = getenv('MYSQLPORT');
-$dbname   = getenv('MYSQLDATABASE');
-$username = getenv('MYSQLUSER');
-$password = getenv('MYSQLPASSWORD');
+<?php
+$host     = 'nozomi.proxy.rlwy.net';
+$port     = '14824'; // On ajoute le port spécifique ici
+$dbname   = 'railway';
+$username = 'root';
+$password = 'GEmBBTNXtOErtvGKVFPBlDIjcTbgMnAJ';
 
 try {
-    $conn = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
+    // Le secret est ici : on ajoute "port=$port" dans la chaîne DSN
+    $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
+    
+    $conn = new PDO($dsn, $username, $password);
+    
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $conn->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+    
+    // Test de succès (optionnel, à retirer après)
+    // echo "Connexion réussie !"; 
+
 } catch(PDOException $e) {
     die("Erreur de connexion à la base de données : " . $e->getMessage());
 }
-
 // Protection contre le double session_start()
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
