@@ -12,7 +12,7 @@ const FICHIERS_CACHE = [
     '/chat.php',
     '/scan.php',
     '/connexion.php',
-    '/manifest.php',      // Si tu utilises manifest.json.php
+    '/manifest.json',      // Si tu utilises manifest.json.php
     '/icons/icon-192.png',
     '/icons/icon-512.png'
 ];
