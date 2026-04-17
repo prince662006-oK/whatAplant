@@ -3,8 +3,7 @@
  * Version corrigée - Plus d'erreur clone()
  */
 
-const VERSION_CACHE = 'whataplan-v1.8';   // ← Change en v1.8 ou plus
-
+const VERSION_CACHE = 'whataplan-v1.9';
 const FICHIERS_CACHE = [
     '/',
     '/index.php',
@@ -12,7 +11,7 @@ const FICHIERS_CACHE = [
     '/chat.php',
     '/scan.php',
     '/connexion.php',
-    '/manifest.json',      // Si tu utilises manifest.json.php
+    '/manifest.php',      // Si tu utilises manifest.json.php
     '/icons/icon-192.png',
     '/icons/icon-512.png'
 ];
