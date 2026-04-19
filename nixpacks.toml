@@ -1,15 +1,24 @@
-[variables]
-    PHP_EXTENSIONS = "pdo_mysql"
-
-nixPkgs = ["php82", "php82Extensions.pdo", "php82Extensions.pdo_mysql", 
-           "php82Extensions.gd", "php82Extensions.curl", "php82Extensions.mbstring",
-           "php82Extensions.fileinfo", "php82Extensions.json"]
+# nixpacks.toml — WhatAPlant Railway
+[phases.setup]
+nixPkgs = [
+    "php83",
+    "php83Extensions.pdo",
+    "php83Extensions.pdo_mysql",
+    "php83Extensions.gd",
+    "php83Extensions.curl",
+    "php83Extensions.mbstring",
+    "php83Extensions.fileinfo",
+    "php83Extensions.json",
+    "php83Extensions.zip",
+    "php83Extensions.intl"
+]
 
 [phases.build]
 cmds = [
-    "mkdir -p uploads",
+    "mkdir -p uploads icons",
     "chmod 755 uploads"
 ]
 
 [start]
+cmd = "php -S 0.0.0.0:$PORT -t . router.php"
 cmd = "php -S 0.0.0.0:$PORT -t . router.php"
