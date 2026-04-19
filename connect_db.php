@@ -1,7 +1,7 @@
 <?php
 
 // Railway injecte ces variables automatiquement si les deux services sont dans le même projet
-$host     = getenv('MYSQLHOST') ?: ' nozomi.proxy.rlwy.net'; 
+$host     = getenv('MYSQLHOST') ?: 'nozomi.proxy.rlwy.net'; 
 $port     = getenv('MYSQLPORT') ?: '3306';
 $dbname   = getenv('MYSQLDATABASE') ?: 'railway';
 $username = getenv('MYSQLUSER') ?: 'root';
