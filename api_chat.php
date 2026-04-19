@@ -28,8 +28,9 @@ header('Content-Type: application/json; charset=utf-8');
 // ============================================================
 // CONFIG
 // ============================================================
-define('GROQ_API_KEY',      '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');
-define('PLANTNET_API_KEY',  '2b10Ur6NApHlKKjxGB9oXxCge');
+// Clés depuis variables d'environnement Railway (.env ou panel Railway)
+define('GROQ_API_KEY',     getenv('GROQ_API_KEY')     ?: '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');
+define('PLANTNET_API_KEY', getenv('PLANTNET_API_KEY') ?: '2b10Ur6NApHlKKjxGB9oXxCge');
 define('GROQ_MODELE_TEXTE', 'llama-3.3-70b-versatile');
 define('GROQ_MODELE_VISION','meta-llama/llama-4-scout-17b-16e-instruct');
 define('GROQ_URL',          'https://api.groq.com/openai/v1/chat/completions');
@@ -327,7 +328,14 @@ if (preg_match('/\[BADGES:([^\]]+)\]/i', $html, $m)) {
 }
 $badges = $badges ?: [];
 // Si badge "aucun" → pas d'images, pas de recette
-$est_question_generale = in_array('aucun', $badges);
+$est_question_generale = in_array('aucun', $badges) || empty($badges);
+// Si question générale → pas d'erreur, réponse simple
+if ($est_question_generale) {
+    // Nettoyer le HTML des badges résiduels
+    $html = preg_replace('/\[BADGES:[^\]]*\]/i', '', $html);
+    $html = trim($html);
+    $plain_text = trim(strip_tags($html));
+}
 
 if (preg_match('/\[RECIPE:\s*(\{.*?\})\s*\]/s', $html, $m)) {
     $rd = json_decode($m[1], true);
@@ -657,5 +665,4 @@ function callPlantNet(string $chemin, string $mime): ?array {
         'famille'          => $sp['family']['scientificNameWithoutAuthor'] ?? '',
         'image_url'        => $top['images'][0]['url']['m'] ?? null,
     ];
-}
 }
