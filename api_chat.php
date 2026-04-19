@@ -325,21 +325,13 @@ if (!$est_question_generale && ($mode_vision || $est_question_plante)) {
 } // ← FIN du if (!$est_question_generale)
 
 // ── SAUVEGARDE BDD ──
-// ── SAUVEGARDE BDD ──
 $titre_disc = '';
-$scan_id = 0;
-
 try {
-    // Important sur Railway
-    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-    // 1. Discussion (déjà OK chez toi)
     if ($id_disc === 0) {
         $titre = mb_substr($message ?: 'Analyse de plante', 0, 60);
         if (mb_strlen($message) > 60) $titre .= '…';
-
         $conn->prepare("INSERT INTO `$table_disc` (titre) VALUES (?)")->execute([$titre]);
-        $id_disc = (int)$conn->lastInsertId();
+        $id_disc    = (int)$conn->lastInsertId();
         $titre_disc = $titre;
     } else {
         $r = $conn->prepare("SELECT titre FROM `$table_disc` WHERE id=?");
@@ -347,9 +339,8 @@ try {
         $titre_disc = $r->fetchColumn() ?: 'Discussion';
     }
 
-    // 2. Messages user + AI (déjà OK)
     $msg_user_bdd = $mode_vision ? '[IMAGE:'.$image_sauvegardee.'] '.($message ?: '') : $message;
-    $conn->prepare("INSERT INTO `$table_msg` (discussion_id, role, contenu) VALUES (?, 'user', ?)")
+    $conn->prepare("INSERT INTO `$table_msg` (discussion_id,role,contenu) VALUES (?,'user',?)")
          ->execute([$id_disc, $msg_user_bdd]);
 
     $meta = base64_encode(json_encode([
@@ -359,75 +350,66 @@ try {
         'nom_sci'    => $nom_sci,
         'nom_plat'   => $recette['title'] ?? '',
     ]));
+    $conn->prepare("INSERT INTO `$table_msg` (discussion_id,role,contenu) VALUES (?,'ai',?)")
+         ->execute([$id_disc, $html.'<!--IMGMETA:'.$meta.':IMGMETA-->']);
 
-    $contenu_ai = $html . '<!--IMGMETA:' . $meta . ':IMGMETA-->';
-    $conn->prepare("INSERT INTO `$table_msg` (discussion_id, role, contenu) VALUES (?, 'ai', ?)")
-         ->execute([$id_disc, $contenu_ai]);
-
-    // ==================== SCANS_PLANTES (le bloc qui pose problème) ====================
+    // Stats Power BI
     if (!empty($nom_sci) && !$est_question_generale) {
+        $est_malade_val   = ($maladie !== null) ? 1 : 0;
+        $nom_maladie_val  = $maladie['name'] ?? '';
+        $est_invasive_val = (str_contains(strtolower($html), 'invasive')) ? 1 : 0;
+        $niveau_toxi_val  = 'aucun';
+        if (in_array('toxique', $badges)) {
+            $niveau_toxi_val = str_contains(strtolower($html), 'élevé') ? 'eleve' : 'faible';
+        }
+        try {
+            $conn->prepare("INSERT INTO `scans_plantes`
+                (user_id,nom_scientifique,nom_commun,famille,score_confiance,
+                 type_action,badges,image_path,est_malade,nom_maladie,
+                 est_invasive,niveau_toxicite,pays,region)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+                ->execute([
+                    $id_user, $nom_sci,
+                    implode(', ', array_slice($plantnet_result['nom_commun'] ?? [], 0, 3)),
+                    $plantnet_result['famille'] ?? '',
+                    $plantnet_result['score']   ?? 0,
+                    $mode_vision ? 'upload' : 'texte',
+                    implode(',', $badges),
+                    $image_sauvegardee ?? '',
+                    $est_malade_val, $nom_maladie_val,
+                    $est_invasive_val, $niveau_toxi_val,
+                    "Côte d'Ivoire", '',
+                ]);
+            $scan_id = (int)$conn->lastInsertId();
+        } catch(Exception $e) { $scan_id = 0; }
 
-        $stmt = $conn->prepare("INSERT INTO `scans_plantes`
-            (user_id, nom_scientifique, nom_commun, famille, score_confiance,
-             type_action, badges, image_path, est_malade, nom_maladie,
-             est_invasive, niveau_toxicite, pays, region)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-
-        $stmt->execute([
-            $id_user,
-            $nom_sci,
-            implode(', ', array_slice($plantnet_result['nom_commun'] ?? [], 0, 3)),
-            $plantnet_result['famille'] ?? '',
-            (int)($plantnet_result['score'] ?? 0),        // force integer
-            $mode_vision ? 'upload' : 'texte',
-            implode(',', $badges ?: []),
-            $image_sauvegardee ?? '',
-            ($maladie !== null) ? 1 : 0,
-            $maladie['name'] ?? '',
-            (stripos($html ?? '', 'invasive') !== false) ? 1 : 0,
-            in_array('toxique', $badges) ? 'faible' : 'aucun',
-            "Côte d'Ivoire",
-            ''
-        ]);
-
-        $scan_id = (int)$conn->lastInsertId();
-
-        // Maladie détectée
-        if ($maladie && $scan_id > 0) {
-            $type_mal = 'autre';
-            $desc = strtolower($maladie['name'] ?? '');
-            if (str_contains($desc, 'fongique') || str_contains($desc, 'mildiou')) $type_mal = 'fongique';
-            elseif (str_contains($desc, 'bactéri')) $type_mal = 'bacterienne';
-            elseif (str_contains($desc, 'viral') || str_contains($desc, 'virus')) $type_mal = 'virale';
-
-            $conn->prepare("INSERT INTO `maladies_detectees`
-                (scan_id, user_id, plante_hote, nom_maladie, type_maladie)
-                VALUES (?,?,?,?,?)")
-                ->execute([$scan_id, $id_user, $nom_sci, $maladie['name'], $type_mal]);
+        // Maladie
+        if ($maladie && !empty($scan_id)) {
+            try {
+                $type_mal = 'autre';
+                $desc_mal = strtolower($maladie['name'] ?? '');
+                if (str_contains($desc_mal, 'fongique') || str_contains($desc_mal, 'mildiou')) $type_mal = 'fongique';
+                elseif (str_contains($desc_mal, 'bactéri')) $type_mal = 'bacterienne';
+                elseif (str_contains($desc_mal, 'viral') || str_contains($desc_mal, 'virus')) $type_mal = 'virale';
+                $conn->prepare("INSERT INTO `maladies_detectees`
+                    (scan_id,user_id,plante_hote,nom_maladie,type_maladie)
+                    VALUES (?,?,?,?,?)")
+                    ->execute([$scan_id, $id_user, $nom_sci, $maladie['name'], $type_mal]);
+            } catch(Exception $e) {}
         }
 
         // Stats utilisateur
-        $conn->prepare("INSERT INTO `utilisateurs_stats`
-            (user_id, nb_scans_total, nb_plantes_uniques, derniere_activite)
-            VALUES (?, 1, 1, NOW())
-            ON DUPLICATE KEY UPDATE nb_scans_total = nb_scans_total + 1, derniere_activite = NOW()")
-            ->execute([$id_user]);
+        try {
+            $conn->prepare("INSERT INTO `utilisateurs_stats` (user_id,nb_scans_total,nb_plantes_uniques,derniere_activite)
+                VALUES (?,1,1,NOW())
+                ON DUPLICATE KEY UPDATE nb_scans_total=nb_scans_total+1, derniere_activite=NOW()")
+                ->execute([$id_user]);
+        } catch(Exception $e) {}
     }
 
-} catch (PDOException $e) {
-    error_log("ERREUR SCANS MySQL Railway : " . $e->getMessage() . " | Ligne " . $e->getLine());
-
-    // Ceci va apparaître dans ta réponse JSON → très utile pour debug
-    echo json_encode([
-        'error'   => 'Erreur enregistrement scans (Power BI)',
-        'message' => $e->getMessage(),
-        'line'    => $e->getLine(),
-        'sqlstate'=> $e->getCode()
-    ], JSON_UNESCAPED_UNICODE);
-    exit;
+} catch(Exception $e) {
+    if (empty($titre_disc)) $titre_disc = 'Discussion';
 }
-
-if (empty($titre_disc)) $titre_disc = 'Discussion';
 
 // ── RÉPONSE JSON ──
 echo json_encode([
