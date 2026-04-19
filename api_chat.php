@@ -363,24 +363,24 @@ try {
             $niveau_toxi_val = str_contains(strtolower($html), 'élevé') ? 'eleve' : 'faible';
         }
         try {
-            $conn->prepare("INSERT INTO `scans_plantes`
-                (user_id,nom_scientifique,nom_commun,famille,score_confiance,
-                 type_action,badges,image_path,est_malade,nom_maladie,
-                 est_invasive,niveau_toxicite,pays,region)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
-                ->execute([
-                    $id_user, $nom_sci,
-                    implode(', ', array_slice($plantnet_result['nom_commun'] ?? [], 0, 3)),
-                    $plantnet_result['famille'] ?? '',
-                    $plantnet_result['score']   ?? 0,
-                    $mode_vision ? 'upload' : 'texte',
-                    implode(',', $badges),
-                    $image_sauvegardee ?? '',
-                    $est_malade_val, $nom_maladie_val,
-                    $est_invasive_val, $niveau_toxi_val,
-                    "Côte d'Ivoire", '',
-                ]);
-            $scan_id = (int)$conn->lastInsertId();
+          $stmt = $conn->prepare("INSERT INTO `scans_plantes`
+            (user_id, nom_scientifique, nom_commun, famille, score_confiance,
+             type_action, badges, image_path, est_malade)
+            VALUES (?,?,?,?,?,?,?,?,?)");
+
+        $stmt->execute([
+            $id_user,
+            mb_substr($nom_sci, 0, 255),                                      // sécurité longueur
+            mb_substr(implode(', ', array_slice($plantnet_result['nom_commun'] ?? [], 0, 3)), 0, 500),
+            mb_substr($plantnet_result['famille'] ?? '', 0, 100),
+            (int)($plantnet_result['score'] ?? 0),
+            $mode_vision ? 'upload' : 'texte',
+            mb_substr(implode(',', $badges ?: []), 0, 255),
+            $image_sauvegardee ?? '',
+            ($maladie !== null) ? 1 : 0
+        ]);
+
+        $scan_id = (int)$conn->lastInsertId();
         } catch(Exception $e) { $scan_id = 0; }
 
         // Maladie
