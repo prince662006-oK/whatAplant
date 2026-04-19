@@ -331,7 +331,7 @@ $scan_id = 0;
 try {
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // 1. Discussion + Messages (déjà OK)
+    // 1. Discussion
     if ($id_disc === 0) {
         $titre = mb_substr($message ?: 'Analyse de plante', 0, 60);
         if (mb_strlen($message) > 60) $titre .= '…';
@@ -345,10 +345,12 @@ try {
         $titre_disc = $r->fetchColumn() ?: 'Discussion';
     }
 
+    // 2. Message utilisateur
     $msg_user_bdd = $mode_vision ? '[IMAGE:'.$image_sauvegardee.'] '.($message ?: '') : $message;
     $conn->prepare("INSERT INTO `$table_msg` (discussion_id, role, contenu) VALUES (?, 'user', ?)")
          ->execute([$id_disc, $msg_user_bdd]);
 
+    // 3. Message IA
     $meta = base64_encode(json_encode([
         'img_plante' => $img_plante,
         'img_plat'   => $img_plat,
@@ -361,11 +363,11 @@ try {
     $conn->prepare("INSERT INTO `$table_msg` (discussion_id, role, contenu) VALUES (?, 'ai', ?)")
          ->execute([$id_disc, $contenu_ai]);
 
-    // ==================== SCANS_PLANTES (adapté à tes colonnes réelles) ====================
+    // ==================== SCANS_PLANTES ====================
     if (!empty($nom_sci) && !$est_question_generale) {
 
         $stmt = $conn->prepare("INSERT INTO `scans_plantes`
-            (user_id, nom_scientifique, nom_commun, famille, score_confiance, 
+            (user_id, nom_scientifique, nom_commun, famille, score_confiance,
              type_action, badges, image_path, est_malade)
             VALUES (?,?,?,?,?,?,?,?,?)");
 
@@ -395,19 +397,19 @@ try {
                 (scan_id, user_id, plante_hote, nom_maladie, type_maladie)
                 VALUES (?,?,?,?,?)")
                 ->execute([
-                    $scan_id, 
-                    $id_user, 
+                    $scan_id,
+                    $id_user,
                     $nom_sci,
                     $maladie['name'] ?? '',
                     $type_mal
                 ]);
         }
 
-        // ==================== ALERTES_SYSTEME (insertion conditionnelle) ====================
-        // Exemple : alerte si maladie détectée avec confiance élevée
-        if ($maladie && $scan_id > 0 && ($plantnet_result['score'] ?? 0) > 70) {
+        // ==================== ALERTES_SYSTEME (optionnel) ====================
+        if ($maladie && $scan_id > 0 && ($plantnet_result['score'] ?? 0) >= 70) {
             $titre_alerte = "Maladie détectée sur " . $nom_sci;
-            $description = "Une " . strtolower($maladie['name'] ?? 'maladie') . " a été détectée sur " . $nom_sci . 
+            $description = "Une " . strtolower($maladie['name'] ?? 'maladie') . 
+                           " a été détectée sur " . $nom_sci . 
                            " avec une confiance de " . ($plantnet_result['score'] ?? 0) . "%";
 
             $conn->prepare("INSERT INTO `alertes_systeme`
@@ -417,11 +419,11 @@ try {
                     'maladie_plante',
                     $titre_alerte,
                     $description,
-                    $nom_sci,                    // entite = nom de la plante
+                    $nom_sci,
                     "Côte d'Ivoire",
-                    1,                           // nb_cas
-                    5,                           // seuil_alerte (exemple)
-                    1                            // est_active
+                    1,
+                    5,
+                    1
                 ]);
         }
 
@@ -434,14 +436,16 @@ try {
     }
 
 } catch (PDOException $e) {
-    error_log("ERREUR ENREGISTREMENT Railway : " . $e->getMessage() . " | Ligne " . $e->getLine());
-    
+    error_log("ERREUR BDD Railway - Ligne " . $e->getLine() . " : " . $e->getMessage());
+
+    // On renvoie l'erreur clairement dans la réponse JSON
     echo json_encode([
-        'error' => 'Erreur lors de l\'enregistrement des données',
+        'error'   => 'Erreur lors de l\'enregistrement en base de données',
         'message' => $e->getMessage(),
-        'line' => $e->getLine()
+        'line'    => $e->getLine(),
+        'debug'   => 'Vérifie les logs Railway pour plus de détails'
     ], JSON_UNESCAPED_UNICODE);
-    exit;
+    exit;   // ← Important pour voir l'erreur
 }
 
 if (empty($titre_disc)) $titre_disc = 'Discussion';
