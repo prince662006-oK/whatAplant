@@ -76,21 +76,29 @@ if (isset($_FILES['image']) && $_FILES['image']['error'] === 0) {
     if (!in_array($image_mime, ['image/jpeg','image/jpg','image/png','image/webp'])) {
         echo json_encode(['error' => 'Format non supporté. Utilisez JPEG, PNG ou WebP.']); exit;
     }
-    $binaire   = file_get_contents($chemin_tmp);
-    $ressource = @imagecreatefromstring($binaire);
-    if ($ressource) {
-        $w = imagesx($ressource); $h = imagesy($ressource);
-        if ($w > 1024) {
-            $nh  = (int)($h * 1024 / $w);
-            $red = imagecreatetruecolor(1024, $nh);
-            imagecopyresampled($red, $ressource, 0,0,0,0, 1024,$nh,$w,$h);
-            imagedestroy($ressource); $ressource = $red;
+    $binaire = file_get_contents($chemin_tmp);
+
+    // Compression image — vérifie si l'extension GD est disponible
+    if (function_exists('imagecreatefromstring') && !empty($binaire)) {
+        $ressource = @imagecreatefromstring($binaire);
+        if ($ressource) {
+            $w = imagesx($ressource); $h = imagesy($ressource);
+            if ($w > 1024) {
+                $nh  = (int)($h * 1024 / $w);
+                $red = imagecreatetruecolor(1024, $nh);
+                imagecopyresampled($red, $ressource, 0,0,0,0, 1024,$nh,$w,$h);
+                imagedestroy($ressource); $ressource = $red;
+            }
+            ob_start(); imagejpeg($ressource, null, 82); $compresse = ob_get_clean();
+            $image_base64 = base64_encode($compresse);
+            $image_mime   = 'image/jpeg';
+            imagedestroy($ressource);
+        } else {
+            // GD disponible mais image non reconnue → encoder directement
+            $image_base64 = base64_encode($binaire);
         }
-        ob_start(); imagejpeg($ressource, null, 82); $compresse = ob_get_clean();
-        $image_base64 = base64_encode($compresse);
-        $image_mime   = 'image/jpeg';
-        imagedestroy($ressource);
     } else {
+        // GD non disponible → encoder directement sans compression
         $image_base64 = base64_encode($binaire);
     }
     $mode_vision         = true;
