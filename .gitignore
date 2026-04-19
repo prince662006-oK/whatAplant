@@ -1,0 +1,26 @@
+# Fichiers sensibles — NE JAMAIS committer
+.env
+*.env.local
+
+# Uploads utilisateurs
+uploads/*.jpg
+uploads/*.jpeg
+uploads/*.png
+uploads/*.webp
+
+# Fichiers de debug
+debug_grok.php
+test_api.php
+test_grok.php
+test_image.php
+check_models.php
+
+# Logs
+*.log
+error_log
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
