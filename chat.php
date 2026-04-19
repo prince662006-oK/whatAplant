@@ -740,7 +740,7 @@ async function envoyerMessage() {
                     + '<div id="' + pSk + '" class="squelette-image">🌿 Chargement...</div>'
                     + '<img id="' + pId + '" style="display:none;width:100%;border-radius:12px;" alt="Plante">'
                     + '</div>';
-                setTimeout((a,b,c) => () => chargerImageWiki(a,b,c,'plant'), 100)(nomSci, pId, pSk);
+                setTimeout(function(a,b,c){ return function(){ chargerImageWiki(a,b,c,'plant'); }; }(nomSci, pId, pSk), 100);
             }
 
             // Image plat
@@ -751,7 +751,7 @@ async function envoyerMessage() {
                     + '<div id="' + dSk + '" class="squelette-image">🍽️ Chargement...</div>'
                     + '<img id="' + dId + '" style="display:none;width:100%;border-radius:12px;" alt="Plat cuisiné">'
                     + '</div>';
-                setTimeout((a,b,c) => () => chargerImageWiki(a,b,c,'food'), 200)(termeP, dId, dSk);
+                setTimeout(function(a,b,c){ return function(){ chargerImageWiki(a,b,c,'food'); }; }(termeP, dId, dSk), 200);
             }
 
             // Image remède
@@ -762,7 +762,7 @@ async function envoyerMessage() {
                     + '<div id="' + rSk + '" class="squelette-image">💊 Chargement...</div>'
                     + '<img id="' + rId + '" style="display:none;width:100%;border-radius:12px;" alt="Remède">'
                     + '</div>';
-                setTimeout((a,b,c) => () => chargerImageWiki(a,b,c,'medicine'), 300)(termeR, rId, rSk);
+                setTimeout(function(a,b,c){ return function(){ chargerImageWiki(a,b,c,'medicine'); }; }(termeR, rId, rSk), 300);
             }
 
             bulle += '</div>';
