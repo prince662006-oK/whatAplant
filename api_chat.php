@@ -323,7 +323,6 @@ if (!$est_question_generale && ($mode_vision || $est_question_plante)) {
     }
 
 } // ← FIN du if (!$est_question_generale)
-
 // ── SAUVEGARDE BDD ──
 $titre_disc = '';
 $scan_id = 0;
@@ -331,7 +330,7 @@ $scan_id = 0;
 try {
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // 1. Discussion
+    // 1. Discussion + Messages (déjà OK)
     if ($id_disc === 0) {
         $titre = mb_substr($message ?: 'Analyse de plante', 0, 60);
         if (mb_strlen($message) > 60) $titre .= '…';
@@ -345,12 +344,10 @@ try {
         $titre_disc = $r->fetchColumn() ?: 'Discussion';
     }
 
-    // 2. Message utilisateur
     $msg_user_bdd = $mode_vision ? '[IMAGE:'.$image_sauvegardee.'] '.($message ?: '') : $message;
     $conn->prepare("INSERT INTO `$table_msg` (discussion_id, role, contenu) VALUES (?, 'user', ?)")
          ->execute([$id_disc, $msg_user_bdd]);
 
-    // 3. Message IA
     $meta = base64_encode(json_encode([
         'img_plante' => $img_plante,
         'img_plat'   => $img_plat,
@@ -363,12 +360,11 @@ try {
     $conn->prepare("INSERT INTO `$table_msg` (discussion_id, role, contenu) VALUES (?, 'ai', ?)")
          ->execute([$id_disc, $contenu_ai]);
 
-    // ==================== SCANS_PLANTES (version ultra sécurisée) ====================
+    // ==================== SCANS_PLANTES ====================
     if (!empty($nom_sci) && !$est_question_generale) {
 
-        // Protection contre plantnet_result null
         $nom_commun_str = '';
-        if (is_array($plantnet_result) && isset($plantnet_result['nom_commun']) && is_array($plantnet_result['nom_commun'])) {
+        if (is_array($plantnet_result) && !empty($plantnet_result['nom_commun'])) {
             $nom_commun_str = mb_substr(implode(', ', array_slice($plantnet_result['nom_commun'], 0, 3)), 0, 500);
         }
 
@@ -376,8 +372,7 @@ try {
         $score_int   = is_array($plantnet_result) ? (int)($plantnet_result['score'] ?? 0) : 0;
 
         $stmt = $conn->prepare("INSERT INTO `scans_plantes`
-            (user_id, nom_scientifique, nom_commun, famille, score_confiance,
-             type_action, badges, image_path, est_malade)
+            (user_id, nom_scientifique, nom_commun, famille, score_confiance, type_action, badges, image_path, est_malade)
             VALUES (?,?,?,?,?,?,?,?,?)");
 
         $stmt->execute([
@@ -394,7 +389,7 @@ try {
 
         $scan_id = (int)$conn->lastInsertId();
 
-        // MALADIES_DETECTEES
+        // ==================== MALADIES_DETECTEES (avec toutes les colonnes) ====================
         if ($maladie && $scan_id > 0) {
             $type_mal = 'autre';
             $desc = strtolower($maladie['name'] ?? '');
@@ -403,22 +398,29 @@ try {
             elseif (str_contains($desc, 'viral') || str_contains($desc, 'virus')) $type_mal = 'virale';
 
             $conn->prepare("INSERT INTO `maladies_detectees`
-                (scan_id, user_id, plante_hote, nom_maladie, type_maladie)
-                VALUES (?,?,?,?,?)")
+                (scan_id, user_id, plante_hote, nom_maladie, type_maladie, severite, 
+                 traitement_naturel, traitement_chimique, latitude, longitude, region)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?)")
                 ->execute([
                     $scan_id,
                     $id_user,
                     $nom_sci,
                     $maladie['name'] ?? '',
-                    $type_mal
+                    $type_mal,
+                    'moyenne',                    // severite (à adapter si besoin)
+                    '',                           // traitement_naturel
+                    '',                           // traitement_chimique
+                    null,                         // latitude
+                    null,                         // longitude
+                    "Côte d'Ivoire"               // region
                 ]);
         }
 
-        // ALERTES_SYSTEME (optionnel)
+        // ==================== ALERTES_SYSTEME ====================
         if ($maladie && $scan_id > 0 && $score_int >= 70) {
             $titre_alerte = "Maladie détectée sur " . $nom_sci;
             $description = "Une " . strtolower($maladie['name'] ?? 'maladie') .
-                           " a été détectée sur " . $nom_sci .
+                           " a été détectée sur " . $nom_sci . 
                            " avec une confiance de " . $score_int . "%";
 
             $conn->prepare("INSERT INTO `alertes_systeme`
@@ -450,8 +452,7 @@ try {
     echo json_encode([
         'error'   => 'Erreur lors de l\'enregistrement en base de données',
         'message' => $e->getMessage(),
-        'line'    => $e->getLine(),
-        'debug'   => 'Vérifie les logs Railway pour plus de détails'
+        'line'    => $e->getLine()
     ], JSON_UNESCAPED_UNICODE);
     exit;
 }
