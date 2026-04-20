@@ -25,7 +25,7 @@ ob_clean();
 header('Content-Type: application/json; charset=utf-8');
 
 // ── CONFIG ──
-define('GROQ_API_KEY',      getenv('GROQ_API_KEY')     ?: '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');
+define('GROQ_API_KEY',      getenv('GROQ_API_KEY')     ?: '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');
 define('PLANTNET_API_KEY',  getenv('PLANTNET_API_KEY') ?: '2b10Ur6NApHlKKjxGB9oXxCge');
 define('GROQ_MODELE_TEXTE', 'llama-3.3-70b-versatile');
 define('GROQ_MODELE_VISION','meta-llama/llama-4-scout-17b-16e-instruct');
