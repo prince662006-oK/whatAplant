@@ -363,8 +363,17 @@ try {
     $conn->prepare("INSERT INTO `$table_msg` (discussion_id, role, contenu) VALUES (?, 'ai', ?)")
          ->execute([$id_disc, $contenu_ai]);
 
-    // ==================== SCANS_PLANTES ====================
+    // ==================== SCANS_PLANTES (version ultra sécurisée) ====================
     if (!empty($nom_sci) && !$est_question_generale) {
+
+        // Protection contre plantnet_result null
+        $nom_commun_str = '';
+        if (is_array($plantnet_result) && isset($plantnet_result['nom_commun']) && is_array($plantnet_result['nom_commun'])) {
+            $nom_commun_str = mb_substr(implode(', ', array_slice($plantnet_result['nom_commun'], 0, 3)), 0, 500);
+        }
+
+        $famille_str = is_array($plantnet_result) ? mb_substr($plantnet_result['famille'] ?? '', 0, 100) : '';
+        $score_int   = is_array($plantnet_result) ? (int)($plantnet_result['score'] ?? 0) : 0;
 
         $stmt = $conn->prepare("INSERT INTO `scans_plantes`
             (user_id, nom_scientifique, nom_commun, famille, score_confiance,
@@ -374,18 +383,18 @@ try {
         $stmt->execute([
             $id_user,
             mb_substr($nom_sci, 0, 255),
-            mb_substr(implode(', ', array_slice($plantnet_result['nom_commun'] ?? [], 0, 3)), 0, 500),
-            mb_substr($plantnet_result['famille'] ?? '', 0, 100),
-            (int)($plantnet_result['score'] ?? 0),
+            $nom_commun_str,
+            $famille_str,
+            $score_int,
             $mode_vision ? 'upload' : 'texte',
-            mb_substr(implode(',', $badges ?: []), 0, 255),
+            mb_substr(implode(',', is_array($badges) ? $badges : []), 0, 255),
             $image_sauvegardee ?? '',
             ($maladie !== null) ? 1 : 0
         ]);
 
         $scan_id = (int)$conn->lastInsertId();
 
-        // ==================== MALADIES_DETECTEES ====================
+        // MALADIES_DETECTEES
         if ($maladie && $scan_id > 0) {
             $type_mal = 'autre';
             $desc = strtolower($maladie['name'] ?? '');
@@ -405,12 +414,12 @@ try {
                 ]);
         }
 
-        // ==================== ALERTES_SYSTEME (optionnel) ====================
-        if ($maladie && $scan_id > 0 && ($plantnet_result['score'] ?? 0) >= 70) {
+        // ALERTES_SYSTEME (optionnel)
+        if ($maladie && $scan_id > 0 && $score_int >= 70) {
             $titre_alerte = "Maladie détectée sur " . $nom_sci;
-            $description = "Une " . strtolower($maladie['name'] ?? 'maladie') . 
-                           " a été détectée sur " . $nom_sci . 
-                           " avec une confiance de " . ($plantnet_result['score'] ?? 0) . "%";
+            $description = "Une " . strtolower($maladie['name'] ?? 'maladie') .
+                           " a été détectée sur " . $nom_sci .
+                           " avec une confiance de " . $score_int . "%";
 
             $conn->prepare("INSERT INTO `alertes_systeme`
                 (type_alerte, titre, description, entite, region, nb_cas, seuil_alerte, est_active)
@@ -437,15 +446,14 @@ try {
 
 } catch (PDOException $e) {
     error_log("ERREUR BDD Railway - Ligne " . $e->getLine() . " : " . $e->getMessage());
-
-    // On renvoie l'erreur clairement dans la réponse JSON
+    
     echo json_encode([
         'error'   => 'Erreur lors de l\'enregistrement en base de données',
         'message' => $e->getMessage(),
         'line'    => $e->getLine(),
         'debug'   => 'Vérifie les logs Railway pour plus de détails'
     ], JSON_UNESCAPED_UNICODE);
-    exit;   // ← Important pour voir l'erreur
+    exit;
 }
 
 if (empty($titre_disc)) $titre_disc = 'Discussion';
